@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regular Verbs Quiz (IPA)</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f4; color: #333; margin: 0; }
+        .container { max-width: 700px; margin: 40px auto; background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+        h1 { color: #3498db; text-align: center; }
+        .question { font-size: 1.2em; margin-bottom: 20px; }
+        .ipa-hint { font-size: 1.1em; color: #2980b9; margin-bottom: 10px; text-align: center; }
+        .input { width: 95%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px; }
+        .feedback { margin-top: 10px; padding: 10px; border-radius: 6px; text-align: center; }
+        .correct { background: #d4edda; color: #155724; }
+        .incorrect { background: #f8d7da; color: #721c24; }
+        .controls { text-align: center; margin-top: 20px; }
+        .controls button { background: #3498db; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 1em; margin: 0 10px; }
+        .stats { text-align: center; margin-top: 20px; font-size: 0.95em; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Regular Verbs Quiz (IPA)</h1>
+    <div id="setupBox">
+        <label for="teamName">Enter your team name:</label>
+        <select id="teamName" class="input">
+            <option value="Team 1">Team 1</option>
+            <option value="Team 2">Team 2</option>
+        </select>
+        <label for="playerName">Enter your name:</label>
+        <input type="text" id="playerName" class="input" placeholder="Your name...">
+        <button onclick="startQuiz()">Start Quiz</button>
+    </div>
+    <div id="quizBox" style="display:none;">
+        <div class="question" id="questionText">Loading...</div>
+        <div class="ipa-hint" id="ipaHint"></div>
+        <input type="text" class="input" id="answerInput" placeholder="Write the verb in IPA...">
+        <button onclick="checkAnswer()">Check</button>
+        <div class="feedback" id="feedback"></div>
+        <div class="controls">
+            <button onclick="nextQuestion()">Next →</button>
+        </div>
+        <div class="stats">
+            Question <span id="currentIndex">1</span> of <span id="totalQuestions">0</span>
+        </div>
+    </div>
+    <div id="rankingBox" style="display:none;"></div>
+</div>
+<script>
+const quiz = [
+    // Presente
+    { sentence: "I ___ to school every day.", verb: "walk", ipa: "/wɔːk/" },
+    { sentence: "She ___ a letter every week.", verb: "writes", ipa: "/raɪts/" },
+    { sentence: "They ___ the dishes after dinner.", verb: "wash", ipa: "/wɒʃ/" },
+    { sentence: "He ___ his homework before playing.", verb: "finish", ipa: "/ˈfɪnɪʃ/" },
+    { sentence: "We ___ movies on Fridays.", verb: "watch", ipa: "/wɒtʃ/" },
+    { sentence: "I ___ my room every Saturday.", verb: "clean", ipa: "/kliːn/" },
+    { sentence: "You ___ the answer correctly.", verb: "guess", ipa: "/ɡɛs/" },
+    { sentence: "She ___ her bike to school.", verb: "rides", ipa: "/raɪdz/" },
+    { sentence: "They ___ the door quietly.", verb: "open", ipa: "/ˈəʊpən/" },
+    { sentence: "He ___ his shoes before entering.", verb: "remove", ipa: "/rɪˈmuːv/" },
+    // Pasado
+    { sentence: "Yesterday, I ___ to school.", verb: "walked", ipa: "/wɔːkt/" },
+    { sentence: "She ___ a letter last week.", verb: "wrote", ipa: "/rəʊt/" },
+    { sentence: "They ___ the dishes after dinner.", verb: "washed", ipa: "/wɒʃt/" },
+    { sentence: "He ___ his homework before playing.", verb: "finished", ipa: "/ˈfɪnɪʃt/" },
+    { sentence: "We ___ the movie last night.", verb: "watched", ipa: "/wɒtʃt/" },
+    { sentence: "I ___ my room last Saturday.", verb: "cleaned", ipa: "/kliːnd/" },
+    { sentence: "You ___ the answer correctly.", verb: "guessed", ipa: "/ɡɛst/" },
+    { sentence: "She ___ her bike to school yesterday.", verb: "rode", ipa: "/rəʊd/" },
+    { sentence: "They ___ the door quietly.", verb: "opened", ipa: "/ˈəʊpənd/" },
+    { sentence: "He ___ his shoes before entering.", verb: "removed", ipa: "/rɪˈmuːvd/" },
+    // Futuro
+    { sentence: "Tomorrow, I will ___ to school.", verb: "walk", ipa: "/wɔːk/" },
+    { sentence: "She will ___ a letter next week.", verb: "write", ipa: "/raɪt/" },
+    { sentence: "They will ___ the dishes after dinner.", verb: "wash", ipa: "/wɒʃ/" },
+    { sentence: "He will ___ his homework before playing.", verb: "finish", ipa: "/ˈfɪnɪʃ/" },
+    { sentence: "We will ___ a movie tomorrow night.", verb: "watch", ipa: "/wɒtʃ/" },
+    { sentence: "I will ___ my room next Saturday.", verb: "clean", ipa: "/kliːn/" },
+    { sentence: "You will ___ the answer correctly.", verb: "guess", ipa: "/ɡɛs/" },
+    { sentence: "She will ___ her bike to school.", verb: "ride", ipa: "/raɪd/" },
+    { sentence: "They will ___ the door quietly.", verb: "open", ipa: "/ˈəʊpən/" },
+    { sentence: "He will ___ his shoes before entering.", verb: "remove", ipa: "/rɪˈmuːv/" }
+];
+let current = 0;
+let score = 0;
+let playerName = "";
+let teamName = "";
+let ranking = [];
+let teamScores = { "Team 1": 0, "Team 2": 0 };
+const questionText = document.getElementById('questionText');
+const ipaHint = document.getElementById('ipaHint');
+const answerInput = document.getElementById('answerInput');
+const feedback = document.getElementById('feedback');
+const currentIndex = document.getElementById('currentIndex');
+const totalQuestions = document.getElementById('totalQuestions');
+const setupBox = document.getElementById('setupBox');
+const quizBox = document.getElementById('quizBox');
+const rankingBox = document.getElementById('rankingBox');
+totalQuestions.textContent = quiz.length;
+
+function startQuiz() {
+    playerName = document.getElementById('playerName').value.trim();
+    teamName = document.getElementById('teamName').value;
+    if (!playerName) {
+        alert('Please enter your name.');
+        return;
+    }
+    setupBox.style.display = 'none';
+    quizBox.style.display = 'block';
+    current = 0;
+    score = 0;
+    displayQuestion();
+}
+
+function displayQuestion() {
+    if (current >= quiz.length) {
+        showResults();
+        return;
+    }
+    questionText.textContent = quiz[current].sentence;
+    ipaHint.textContent = 'IPA: ' + quiz[current].ipa;
+    answerInput.value = '';
+    feedback.textContent = '';
+    feedback.className = 'feedback';
+    currentIndex.textContent = current + 1;
+}
+
+function checkAnswer() {
+    const user = answerInput.value.trim();
+    const correct = quiz[current].ipa;
+    if (user === correct) {
+        feedback.textContent = 'Correct!';
+        feedback.className = 'feedback correct';
+        score++;
+    } else {
+        feedback.textContent = 'Incorrect. The answer is: ' + correct;
+        feedback.className = 'feedback incorrect';
+    }
+}
+
+function nextQuestion() {
+    current++;
+    displayQuestion();
+}
+
+function showResults() {
+    quizBox.style.display = 'none';
+    ranking.push({ name: playerName, team: teamName, score: score });
+    teamScores[teamName] += score;
+    rankingBox.style.display = 'block';
+    let html = `<h1>Quiz Finished 🎉</h1>`;
+    html += `<p>${playerName} (${teamName}), your final score: <strong>${score} of ${quiz.length}</strong></p>`;
+    html += `<button onclick='playAgain()'>Next Player</button>`;
+    html += `<h2>Individual Ranking</h2><ol>`;
+    ranking.sort((a,b)=>b.score-a.score);
+    ranking.forEach(r => {
+        html += `<li>${r.name} (${r.team}): ${r.score} points</li>`;
+    });
+    html += `</ol>`;
+    html += `<h2>Team Scores</h2><ul>`;
+    html += `<li>Team 1: ${teamScores["Team 1"]} points</li>`;
+    html += `<li>Team 2: ${teamScores["Team 2"]} points</li>`;
+    html += `</ul>`;
+    rankingBox.innerHTML = html;
+}
+
+function playAgain() {
+    setupBox.style.display = 'block';
+    quizBox.style.display = 'none';
+    rankingBox.style.display = 'none';
+    document.getElementById('playerName').value = '';
+}
+</script>
+</body>
+</html>
